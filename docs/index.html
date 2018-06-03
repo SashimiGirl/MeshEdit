@@ -1,0 +1,222 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd">
+<html xmlns="http://www.w3.org/1999/xhtml" xml:lang="en" lang="en">
+<head>
+<style>
+  body {
+    padding: 100px;
+    width: 1000px;
+    margin: auto;
+    text-align: left;
+    font-weight: 300;
+    font-family: 'Open Sans', sans-serif;
+    color: #121212;
+  }
+  h1, h2, h3, h4 {
+    font-family: 'Source Sans Pro', sans-serif;
+  }
+</style>
+<title>CS 184 Mesh Editor</title>
+<meta http-equiv="content-type" content="text/html; charset=utf-8" />
+<link href="https://fonts.googleapis.com/css?family=Open+Sans|Source+Sans+Pro" rel="stylesheet">
+</head>
+
+
+<body>
+
+<h1 align="middle">CS 184: Computer Graphics and Imaging, Spring 2018</h1>
+<h1 align="middle">Project 2: Mesh Editor</h1>
+<h2 align="middle">Sara Maemoto, CS184-afb</h2>
+
+<br><br>
+
+<div>
+
+<h2 align="middle">Overview</h2>
+<p>In this project, I implemented a mesh editor. To do this I wrote a function that is able to create 1D surfaces given points in space. Then created a function for 2D surfaces both using de Casteljau's subdivision algorithm. This was used in order to create surfaces given points in 3D space. In the second section, I first found averaged normals for half-edge meshes, which helped to smooth out surfaces in a given mesh. Then created a function for half-edge flipping and splitting which allowed me more control over the polygons within the mesh. Both functions also helped for implementing the loop subdivision for mesh upsampling. This required me to split all of the triangles within the mesh into smaller triangles which allowed for a better resolution.</p>
+
+<h2 align="middle">Section I: Bezier Curves and Surfaces</h2>
+
+<h3 align="middle">Part 1: Bezier curves with 1D de Casteljau subdivision</h3>
+
+<p>Casteljau's algorithm is a way to numerically evaluate a polynomial. His algorithm uses recursion to find a point on a curve given a ratio, t, and N points. You recursively find the linear interpolation between each of the 2 points, which is just a ratio between the two points. This results in N-1 points. Which can then repeat the process until there is only 1 point. This point lies on the Bezier curve. This entire process can be repeated for different ratios from 0 to 1. The results of this process is the entire Bezier curve.</p>
+
+<div align="middle">
+  <table style="width=100%">
+    <tr>
+      <td>
+        <img src="images/Part1_1.png" align="middle" width="400px"/>
+        <figcaption align="middle">Original points.</figcaption>
+      </td>
+      <td>
+        <img src="images/Part1_2.png" align="middle" width="400px"/>
+        <figcaption align="middle">1st iteration.</figcaption>
+      </td>
+      <td>
+        <img src="images/Part1_3.png" align="middle" width="400px"/>
+        <figcaption align="middle">2nd iteration.</figcaption>
+      </td>
+    </tr>
+    <br>
+    <tr>
+      <td>
+        <img src="images/Part1_4.png" align="middle" width="400px"/>
+        <figcaption align="middle">3rd iteration.</figcaption>
+      </td>
+      <td>
+        <img src="images/Part1_5.png" align="middle" width="400px"/>
+        <figcaption align="middle">4th iteration.</figcaption>
+      </td>
+      <td>
+        <img src="images/Part1_6.png" align="middle" width="400px"/>
+        <figcaption align="middle">5th iteration.</figcaption>
+      </td>
+    </tr>
+    <tr>
+       <td>
+        <img src="images/Part1_7.png" align="middle" width="400px"/>
+        <figcaption align="middle">Bezier curve.</figcaption>
+      </td>
+    </tr>
+
+  </table>
+</div>
+
+<h3 align="middle">Part 2: Bezier surfaces with separable 1D de Casteljau subdivision</h3>
+
+<p>Bezier surfaces can be described as perpendicular bezier curves. This means that one can use de Casteljau's algorithm to find the curves in one direction, and then the curve in the perpendicular direction using the previous findings. To implement this, I first evaluated 4 sets of 4 points, which resulted in 4 points. These points were in the direction u. Then I used de Casteljau's subdivision on these points in the v direction. This lead to the final point on the surface.</p>
+
+<div align="middle">
+  <table style="width=100%">
+    <tr>
+      <td>
+        <img src="images/Part2.png" align="middle" width="400px"/>
+        <figcaption align="middle">Teapot.</figcaption>
+      </td>
+    </tr>
+    <br>
+  </table>
+</div>
+
+<h2 align="middle">Section II: Sampling</h2>
+
+<h3 align="middle">Part 3: Average normals for half-edge meshes</h3>
+
+<p>I found the the weighted average for each face by using the cross product on each of the triangles' edges. I iterated through each face based on a center vertex, this allowed me to sum each of the triangles around the center vertex and average them.</p>
+
+<div align="middle">
+  <table style="width=100%">
+    <tr>
+      <td>
+        <img src="images/Part3_1.png" align="middle" width="400px"/>
+        <figcaption align="middle">Not averaged.</figcaption>
+      </td>
+      <td>
+        <img src="images/Part3_2.png" align="middle" width="400px"/>
+        <figcaption align="middle">Averaged.</figcaption>
+      </td>
+    </tr>
+    <br>
+  </table>
+</div>
+
+<h3 align="middle">Part 4: Half-edge flip</h3>
+
+<p>I implemented the flip by changing the edge's vertex and it's twins vertex. I also changed their next halfedges to appropriate halfedges. Their halfedge's next also changed to the appropriate halfedge. The third halfedge's next needed to be set to the original edge's halfedge. All faces also needed to be set to the edge's halfedge. This process was reapeated for the twin side. I had a lot of trouble with keeping the correct pointers. At first I tried to save the original halfedges in a newly created temporary halfedge. Unfortunately this did not save all of the orignal connections, which caused many problems. Finally I figured I would save each individual address I needed so that I could not lose any of them. This solved that problem. The next thing I ran into was the problem with the face. It took a while to figure out what the face actually held, I found this information by looking at different half edges within a triangle/face. This gave me a good idea as to the relationship between faces and it's corresponding halfedges. My final solution was to set the face's halfedge to my original edge and give each halfedge in the triangle that same face.</p>
+
+<div align="middle">
+  <table style="width=100%">
+    <tr>
+      <td>
+        <img src="images/Part4_1.png" align="middle" width="400px"/>
+        <figcaption align="middle">Original.</figcaption>
+      </td>
+      <td>
+        <img src="images/Part4_2.png" align="middle" width="400px"/>
+        <figcaption align="middle">Flipped.</figcaption>
+      </td>
+    </tr>
+    <br>
+  </table>
+</div>
+
+<h3 align="middle">Part 5: Half-edge split</h3>
+
+<p>To implement the split, I took an observation about what I did in the previous part. I saved each halfedge from the original 2 triangles in temporary variables. Before I did any coding I actually drew everything out on a piece of paper and wrote out what I thought the code should look like based on my drawing. This helped tremendously! I had 0 problems with implementing my code. I created 6 new halfedges, 3 new edges, 2 new faces, and 1 new vertex. I set each face to a halfedge that was pointing to the new vertex. I then set each halfedge with it's appropriate next, twin, vertex, edge, and face.</p>
+
+<div align="middle">
+  <table style="width=100%">
+    <tr>
+      <td>
+        <img src="images/Part5_1.png" align="middle" width="400px"/>
+        <figcaption align="middle">Original before splits.</figcaption>
+      </td>
+      <td>
+        <img src="images/Part5_2.png" align="middle" width="400px"/>
+        <figcaption align="middle">After splitting.</figcaption>
+      </td>
+    </tr>
+    <br>
+    <tr>
+      <td>
+        <img src="images/Part5_3.png" align="middle" width="400px"/>
+        <figcaption align="middle">Original.</figcaption>
+      </td>
+      <td>
+        <img src="images/Part5_4.png" align="middle" width="400px"/>
+        <figcaption align="middle">After splitting and flipping.</figcaption>
+      </td>
+    </tr>
+  </table>
+</div>
+
+<h3 align="middle">Part 6: Loop subdivision for mesh upsampling</h3>
+
+<p>At first I had difficulty with figuring out how to traverse the mesh. After asking fellow students on piazza I was able to find a way to traverse through all of the edges and vertecies. This allowed me to calculate the new vertex positions based on the surrounding verticies of both the original verticies as well as the new verticies created with splitting. I then split every edge on the original mesh and set all newly created verticies to the positions calculator previously. I then flipped any new edges that was connected to a newly created vertex and an original vertex. I was able to keep track of the newly created verticies and edges by setting the boolean isNew variable to true in my split function. After running my code, I found out that there was actually a problem with my split function. I forgot to set the original verticies to an appropiate halfedge. After fixing that, my function was able to run smoothly.</p>
+
+<p>As seen in the images below, the loop division smoothes out edges and rounds sharp corners.</p>
+
+<div align="middle">
+  <table style="width=100%">
+    <tr>
+      <td>
+        <img src="images/Part6_1.png" align="middle" width="400px"/>
+        <figcaption align="middle">Original.</figcaption>
+      </td>
+      <td>
+        <img src="images/Part6_2.png" align="middle" width="400px"/>
+        <figcaption align="middle">1 loop subdivision.</figcaption>
+      </td>
+      <td>
+        <img src="images/Part6_3.png" align="middle" width="400px"/>
+        <figcaption align="middle">Multiple loop subdivision.</figcaption>
+      </td>
+    </tr>
+  </table>
+</div>
+
+<p>Because the position of the verticies is based on a weighted average, if the edges and verticies are not symmetrical, then the subdivision will also not be symmetrical. Applying some split and flip functions to the cube, created a symmetrical subdivision process. Also by adding more vertices in the middle of the face, it creates a better weight for the new position of each corner, which leads to less disfiguration.</p>
+
+<div align="middle">
+  <table style="width=100%">
+    <tr>
+      <td>
+        <img src="images/Part6_4.png" align="middle" width="400px"/>
+        <figcaption align="middle">Pre-processed cube.</figcaption>
+      </td>
+      <td>
+        <img src="images/Part6_5.png" align="middle" width="400px"/>
+        <figcaption align="middle">1 loop subdivision.</figcaption>
+      </td>
+      <td>
+        <img src="images/Part6_6.png" align="middle" width="400px"/>
+        <figcaption align="middle">Multiple loop subdivision.</figcaption>
+      </td>
+    </tr>
+  </table>
+</div>
+
+<h3 align="middle">Extra Information</h3>
+<p>With respect to UC Berkeley's academic integrety, I will not be posting the code associated with this project. Please contact me directly for my completed work.</p>
+
+</body>
+</html>
